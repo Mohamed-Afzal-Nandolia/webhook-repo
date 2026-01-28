@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Webhook Events</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+          "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
+          "Helvetica Neue", sans-serif; 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      .header {
+        text-align: center;
+        color: white;
+        margin-bottom: 40px;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        font-weight: 700;
+      }
+
+      .header p {
+        font-size: 1.1em;
+        opacity: 0.9;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 15px;
+        padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50px;
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
+        color: white;
+        font-size: 0.95em;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #4ade80;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .events-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+
+      .events-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        font-size: 1.3em;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .event-count {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.9em;
+      }
+
+      .events-list {
+        max-height: 600px;
+        overflow-y: auto;
+      }
+
+      .event-item {
+        padding: 20px;
+        border-bottom: 1px solid #e5e7eb;
+        transition: all 0.3s ease;
+        border-left: 5px solid transparent;
+      }
+
+      .event-item:last-child {
+        border-bottom: none;
+      }
+
+      .event-item:hover {
+        background: #f9fafb;
+        transform: translateX(5px);
+      }
+
+      .event-item.push {
+        border-left-color: #3b82f6;
+      }
+
+      .event-item.pull_request {
+        border-left-color: #f59e0b;
+      }
+
+      .event-item.merge {
+        border-left-color: #10b981;
+      }
+
+      .event-action {
+        display: inline-block;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 0.85em;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .event-action.push {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+
+      .event-action.pull_request {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .event-action.merge {
+        background: #d1fae5;
+        color: #065f46;
+      }
+
+      .event-message {
+        font-size: 1.1em;
+        color: #1f2937;
+        margin-bottom: 8px;
+        line-height: 1.6;
+      }
+
+      .event-timestamp {
+        font-size: 0.9em;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .timestamp-icon {
+        width: 16px;
+        height: 16px;
+        opacity: 0.6;
+      }
+
+      .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+        color: #6b7280;
+      }
+
+      .empty-state-icon {
+        font-size: 3em;
+        margin-bottom: 15px;
+        opacity: 0.5;
+      }
+
+      .empty-state-text {
+        font-size: 1.1em;
+      }
+
+      .refresh-info {
+        text-align: center;
+        color: white;
+        margin-top: 20px;
+        font-size: 0.95em;
+        opacity: 0.8;
+      }
+
+      @media (max-width: 600px) {
+        .header h1 {
+          font-size: 1.8em;
+        }
+
+        .events-header {
+          flex-direction: column;
+          gap: 10px;
+          text-align: center;
+        }
+
+        .event-count {
+          align-self: center;
+        }
+
+        .event-message {
+          font-size: 1em;
+        }
+      }
+
+      /* Scrollbar styling */
+      .events-list::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .events-list::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+
+      .events-list::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+
+      .events-list::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🚀 GitHub Webhook Events</h1>
+        <p>Real-time repository activity monitoring</p>
+        <div class="status">
+          <span class="status-dot"></span>
+          <span>Live - Polling every 15 seconds</span>
+        </div>
+      </div>
+
+      <div class="events-container">
+        <div class="events-header">
+          <span>Recent Events</span>
+          <span class="event-count"
+            ><span id="event-count">0</span> events</span
+          >
+        </div>
+        <div class="events-list" id="events-container">
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div class="empty-state-text">
+              No events yet. Push to your repository to get started!
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="refresh-info">
+        Last updated: <span id="last-updated">Never</span>
+      </div>
+    </div>
+
+    <script>
+      const POLL_INTERVAL = 15 * 1000; // 15 seconds
+      const API_ENDPOINT = "/webhook/events";
+
+      /**
+       * Format ISO timestamp to readable format
+       * Example: "1st April 2021 - 9:30 PM UTC"
+       */
+      function formatTimestamp(isoString) {
+        try {
+          const date = new Date(isoString);
+          const options = {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true,
+            timeZone: "UTC",
+          };
+
+          const formatter = new Intl.DateTimeFormat("en-US", options);
+          const parts = formatter.formatToParts(date);
+          const partMap = {};
+          parts.forEach((part) => {
+            partMap[part.type] = part.value;
+          });
+
+          // Get day with suffix (1st, 2nd, 3rd, etc.)
+          const day = parseInt(partMap.day);
+          const dayWithSuffix = getDayWithSuffix(day);
+
+          return `${dayWithSuffix} ${partMap.month} ${partMap.year} - ${partMap.hour}:${partMap.minute} PM UTC`;
+        } catch (e) {
+          return isoString;
+        }
+      }
+
+      /**
+       * Get day with suffix (1st, 2nd, 3rd, 4th, etc.)
+       */
+      function getDayWithSuffix(day) {
+        if (day > 3 && day < 21) return day + "th";
+        switch (day % 10) {
+          case 1:
+            return day + "st";
+          case 2:
+            return day + "nd";
+          case 3:
+            return day + "rd";
+          default:
+            return day + "th";
+        }
+      }
+
+      /**
+       * Format event data into human-readable message based on action type
+       */
+      function formatEventMessage(event) {
+        const { author, action, from_branch, to_branch, timestamp } = event;
+        const formattedTime = formatTimestamp(timestamp);
+
+        switch (action) {
+          case "PUSH":
+            return `<strong>${author}</strong> pushed to <strong>${to_branch}</strong> on ${formattedTime}`;
+
+          case "PULL_REQUEST":
+            return `<strong>${author}</strong> submitted a pull request from <strong>${from_branch}</strong> to <strong>${to_branch}</strong> on ${formattedTime}`;
+
+          case "MERGE":
+            return `<strong>${author}</strong> merged branch <strong>${from_branch}</strong> to <strong>${to_branch}</strong> on ${formattedTime}`;
+
+          default:
+            return `<strong>${author}</strong> triggered <strong>${action}</strong> on ${formattedTime}`;
+        }
+      }
+
+      /**
+       * Create event item HTML
+       */
+      function createEventElement(event) {
+        const actionLower = event.action.toLowerCase();
+        const message = formatEventMessage(event);
+
+        const element = document.createElement("div");
+        element.className = `event-item ${actionLower}`;
+        element.innerHTML = `
+                <div class="event-action ${actionLower}">${event.action}</div>
+                <div class="event-message">${message}</div>
+                <div class="event-timestamp">
+                    <svg class="timestamp-icon" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd"></path>
+                    </svg>
+                    ${new Date(event.created_at).toLocaleString("en-US", {
+                      timeZone: "UTC",
+                    })} UTC
+                </div>
+            `;
+        return element;
+      }
+
+      /**
+       * Fetch and display events
+       */
+      async function fetchAndDisplayEvents() {
+        try {
+          const response = await fetch(API_ENDPOINT);
+          const data = await response.json();
+
+          if (
+            data.status === "success" &&
+            data.events &&
+            data.events.length > 0
+          ) {
+            const container = document.getElementById("events-container");
+            container.innerHTML = "";
+
+            data.events.forEach((event) => {
+              container.appendChild(createEventElement(event));
+            });
+
+            // Update event count
+            document.getElementById("event-count").textContent = data.count;
+          } else {
+            // Show empty state
+            const container = document.getElementById("events-container");
+            container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <div class="empty-state-text">No events yet. Push to your repository to get started!</div>
+                        </div>
+                    `;
+            document.getElementById("event-count").textContent = "0";
+          }
+
+          // Update last updated time
+          const now = new Date();
+          document.getElementById("last-updated").textContent =
+            now.toLocaleTimeString("en-US", { timeZone: "UTC" }) + " UTC";
+        } catch (error) {
+          console.error("Error fetching events:", error);
+          const container = document.getElementById("events-container");
+          container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <div class="empty-state-text">Error loading events. Please check if the server is running.</div>
+                    </div>
+                `;
+        }
+      }
+
+      /**
+       * Initialize polling
+       */
+      function initializePolling() {
+        // Fetch immediately on load
+        fetchAndDisplayEvents();
+
+        // Set up interval for polling every 15 seconds
+        setInterval(fetchAndDisplayEvents, POLL_INTERVAL);
+      }
+
+      // Start polling when page loads
+      document.addEventListener("DOMContentLoaded", initializePolling);
+    </script>
+  </body>
+</html>
