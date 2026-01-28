@@ -18,7 +18,17 @@ def parse_github_payload(payload):
         author = payload.get('pusher', {}).get('name', 'Unknown')
         to_branch = payload.get('ref', '').split('/')[-1]
         from_branch = ''
-        timestamp = payload.get('head_commit', {}).get('timestamp', datetime.utcnow().isoformat() + 'Z')
+        # Try multiple sources for timestamp
+        timestamp = None
+        if payload.get('head_commit') and payload.get('head_commit', {}).get('timestamp'):
+            timestamp = payload.get('head_commit', {}).get('timestamp')
+        elif payload.get('repository', {}).get('pushed_at'):
+            timestamp = payload.get('repository', {}).get('pushed_at')
+        elif payload.get('commits') and len(payload.get('commits', [])) > 0:
+            timestamp = payload.get('commits', [])[0].get('timestamp')
+        
+        if not timestamp:
+            timestamp = datetime.utcnow().isoformat() + 'Z'
     
     elif event_type == 'pull_request':
         pr_action = payload.get('action', 'opened').upper()
@@ -26,7 +36,9 @@ def parse_github_payload(payload):
         author = payload.get('pull_request', {}).get('user', {}).get('login', 'Unknown')
         from_branch = payload.get('pull_request', {}).get('head', {}).get('ref', '')
         to_branch = payload.get('pull_request', {}).get('base', {}).get('ref', '')
-        timestamp = payload.get('pull_request', {}).get('created_at', datetime.utcnow().isoformat() + 'Z')
+        timestamp = payload.get('pull_request', {}).get('created_at')
+        if not timestamp:
+            timestamp = datetime.utcnow().isoformat() + 'Z'
     
     else:
         # Default fallback
