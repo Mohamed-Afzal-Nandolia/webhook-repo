@@ -31,14 +31,25 @@ def parse_github_payload(payload):
             timestamp = datetime.utcnow().isoformat() + 'Z'
     
     elif event_type == 'pull_request':
-        pr_action = payload.get('action', 'opened').upper()
-        action = 'PULL_REQUEST'
-        author = payload.get('pull_request', {}).get('user', {}).get('login', 'Unknown')
-        from_branch = payload.get('pull_request', {}).get('head', {}).get('ref', '')
-        to_branch = payload.get('pull_request', {}).get('base', {}).get('ref', '')
-        timestamp = payload.get('pull_request', {}).get('created_at')
-        if not timestamp:
-            timestamp = datetime.utcnow().isoformat() + 'Z'
+        # Check if this is a merge (action='closed' AND merged=True)
+        if payload.get('action') == 'closed' and payload.get('pull_request', {}).get('merged'):
+            # This is a MERGE
+            action = 'MERGE'
+            author = payload.get('pull_request', {}).get('merged_by', {}).get('login', 'Unknown')
+            from_branch = payload.get('pull_request', {}).get('head', {}).get('ref', '')
+            to_branch = payload.get('pull_request', {}).get('base', {}).get('ref', '')
+            timestamp = payload.get('pull_request', {}).get('merged_at')
+            if not timestamp:
+                timestamp = datetime.utcnow().isoformat() + 'Z'
+        else:
+            # This is a PULL_REQUEST (opened, synchronize, reopened, etc.)
+            action = 'PULL_REQUEST'
+            author = payload.get('pull_request', {}).get('user', {}).get('login', 'Unknown')
+            from_branch = payload.get('pull_request', {}).get('head', {}).get('ref', '')
+            to_branch = payload.get('pull_request', {}).get('base', {}).get('ref', '')
+            timestamp = payload.get('pull_request', {}).get('created_at')
+            if not timestamp:
+                timestamp = datetime.utcnow().isoformat() + 'Z'
     
     else:
         # Default fallback
@@ -57,7 +68,6 @@ def parse_github_payload(payload):
         'action': action,
         'from_branch': from_branch,
         'to_branch': to_branch,
-        'pr_action': pr_action if event_type == 'pull_request' else '',
         'timestamp': timestamp
     }
 
