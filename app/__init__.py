@@ -3,7 +3,9 @@ from flask_cors import CORS
 from app.extensions import mongo
 from app.webhook.routes import webhook
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 # Creating our flask app
 def create_app():
@@ -14,7 +16,9 @@ def create_app():
     CORS(app)
     
     # MongoDB Configuration
-    app.config['MONGO_URI'] = 'mongodb+srv://m45474516_db_user:8vV6c2b3kxfjsGbr@techstax.kcay55h.mongodb.net/tech_stax'
+    app.config['MONGO_URI'] = os.getenv('MONGO_URI')
+    
+    # Initialize MongoDB
     mongo.init_app(app)
     
     # Root route to serve index.html

@@ -134,14 +134,3 @@ def get_events():
             'error': str(e),
             'status': 'failed'
         }, 500
-
-@webhook.route('/', methods=["GET"])
-def index():
-    """
-    Serve the main UI page.
-    """
-    try:
-        with open('static/index.html', 'r') as f:
-            return f.read(), 200
-    except:
-        return '<h1>Webhook Receiver Active</h1><p>Access /webhook/events for data</p>', 200
